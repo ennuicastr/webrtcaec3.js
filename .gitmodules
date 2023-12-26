@@ -1,0 +1,6 @@
+[submodule "webrtc"]
+	path = webrtc
+	url = https://webrtc.googlesource.com/src
+[submodule "abseil-cpp"]
+	path = abseil-cpp
+	url = https://github.com/abseil/abseil-cpp.git
