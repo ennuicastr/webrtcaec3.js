@@ -114,6 +114,7 @@ dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).js: webrtcaec3.in.js \
 		node_modules/.bin/uglifyjs -m > $@
 
 dist/webrtcaec3.types.d.ts: webrtcaec3.types.in.d.ts
+	mkdir -p dist
 	cp $< $@
 
 dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).asm.js: $(OBJS) exports.json pre.js \
