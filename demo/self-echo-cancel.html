@@ -1,0 +1,93 @@
+<!doctype html>
+<!--
+ * This (un)license applies only to this sample code, and not to webrtcaec3.js
+ * as a whole:
+ *
+ * This is free and unencumbered software released into the public domain.
+ *
+ * Anyone is free to copy, modify, publish, use, compile, sell, or distribute
+ * this software, either in source code form or as a compiled binary, for any
+ * purpose, commercial or non-commercial, and by any means.
+ *
+ * In jurisdictions that recognize copyright laws, the author or authors of
+ * this software dedicate any and all copyright interest in the software to the
+ * public domain. We make this dedication for the benefit of the public at
+ * large and to the detriment of our heirs and successors. We intend this
+ * dedication to be an overt act of relinquishment in perpetuity of all present
+ * and future rights to this software under copyright law.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+    <head>
+        <meta charset="utf8" />
+        <title>WebRtcAec3 JS port self-echo example</title>
+    </head>
+    <body>
+        <script type="text/javascript" src="https://unpkg.com/weasound@^1.0.2/weasound.js"></script>
+        <script type="text/javascript">WebRtcAec3 = {base: "../dist"};</script>
+        <script type="text/javascript" src="../dist/webrtcaec3-0.1.0.js"></script>
+
+        <p>
+            NOTE: This is a terrible demo of echo cancellation, and only really
+            demonstrates the API. When “Loopback” is checked, this feeds the
+            input as output, so will cancel itself and should sound silent. When
+            “Loopback” is not checked, it feeds silence as output, so should
+            cancel nothing (but is still using the filter).
+        </p>
+        <button id="go">Go</button><br/>
+        <input type="checkbox" id="loopback" /><label for="loopback">Loopback</label>
+
+        <script type="text/javascript">(function() {
+            const goB = document.getElementById("go");
+            const loopback = document.getElementById("loopback");
+
+            async function go() {
+                goB.disabled = true;
+
+                // Create all our input and output
+                const ac = new AudioContext({sampleRate: 48000});
+                if (ac.state !== "running")
+                    await ac.resume();
+                const ms = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false
+                    }
+                });
+                const cap = await Weasound.createAudioCapture(ac, ms);
+                const capSampleRate = cap.getSampleRate();
+                const play = await Weasound.createAudioPlayback(ac);
+                (play.unsharedNode() || play.sharedNode()).connect(ac.destination);
+
+                // And our processing
+                const AEC3 = await WebRtcAec3.WebRtcAec3();
+                const aec3 = new AEC3.AEC3(ac.sampleRate, 1, 1);
+                const opts = {sampleRate: capSampleRate};
+                let outBuf = [];
+
+                cap.on("data", chunk => {
+                    if (loopback.checked) {
+                        aec3.analyze(chunk, opts);
+                    } else {
+                        // Feed in silence
+                        const silence = chunk.map(x => new Float32Array(x.length));
+                        aec3.analyze(silence, opts);
+                    }
+                    const outBufSz = aec3.processSize(chunk, opts);
+                    if (outBuf.length !== 1 || outBuf[0].length !== outBufSz) {
+                        outBuf = [new Float32Array(outBufSz)];
+                    }
+                    aec3.process(outBuf, chunk, opts);
+                    play.play(outBuf);
+                });
+            }
+
+            goB.onclick = go;
+        })();</script>
+    </body>
+</html>
