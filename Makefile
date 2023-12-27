@@ -17,18 +17,16 @@ EFLAGS=\
 SRC=\
 	bindings.cc \
 	webrtc/api/audio/echo_canceller3_config.cc \
-	webrtc/api/audio/echo_canceller3_factory.cc \
 	webrtc/common_audio/audio_util.cc \
 	webrtc/common_audio/resampler/push_sinc_resampler.cc \
 	webrtc/common_audio/resampler/sinc_resampler.cc \
 	webrtc/common_audio/signal_processing/splitting_filter.c \
 	webrtc/common_audio/third_party/ooura/fft_size_128/ooura_fft.cc \
-	webrtc/common_audio/third_party/ooura/fft_size_256/fft4g.cc \
 	webrtc/modules/audio_processing/aec3/adaptive_fir_filter.cc \
 	webrtc/modules/audio_processing/aec3/adaptive_fir_filter_erl.cc \
+	webrtc/modules/audio_processing/aec3/aec_state.cc \
 	webrtc/modules/audio_processing/aec3/aec3_common.cc \
 	webrtc/modules/audio_processing/aec3/aec3_fft.cc \
-	webrtc/modules/audio_processing/aec3/aec_state.cc \
 	webrtc/modules/audio_processing/aec3/alignment_mixer.cc \
 	webrtc/modules/audio_processing/aec3/api_call_jitter_metrics.cc \
 	webrtc/modules/audio_processing/aec3/block_buffer.cc \
@@ -49,8 +47,8 @@ SRC=\
 	webrtc/modules/audio_processing/aec3/echo_path_variability.cc \
 	webrtc/modules/audio_processing/aec3/echo_remover.cc \
 	webrtc/modules/audio_processing/aec3/echo_remover_metrics.cc \
-	webrtc/modules/audio_processing/aec3/erle_estimator.cc \
 	webrtc/modules/audio_processing/aec3/erl_estimator.cc \
+	webrtc/modules/audio_processing/aec3/erle_estimator.cc \
 	webrtc/modules/audio_processing/aec3/fft_buffer.cc \
 	webrtc/modules/audio_processing/aec3/filter_analyzer.cc \
 	webrtc/modules/audio_processing/aec3/frame_blocker.cc \
@@ -76,8 +74,8 @@ SRC=\
 	webrtc/modules/audio_processing/aec3/subband_erle_estimator.cc \
 	webrtc/modules/audio_processing/aec3/subband_nearend_detector.cc \
 	webrtc/modules/audio_processing/aec3/subtractor.cc \
-	webrtc/modules/audio_processing/aec3/subtractor_output_analyzer.cc \
 	webrtc/modules/audio_processing/aec3/subtractor_output.cc \
+	webrtc/modules/audio_processing/aec3/subtractor_output_analyzer.cc \
 	webrtc/modules/audio_processing/aec3/suppression_filter.cc \
 	webrtc/modules/audio_processing/aec3/suppression_gain.cc \
 	webrtc/modules/audio_processing/aec3/transparent_mode.cc \
