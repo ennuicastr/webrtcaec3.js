@@ -18,6 +18,7 @@ SRC=\
 	bindings.cc \
 	webrtc/api/audio/echo_canceller3_config.cc \
 	webrtc/api/audio/echo_canceller3_factory.cc \
+	webrtc/common_audio/audio_util.cc \
 	webrtc/common_audio/resampler/push_sinc_resampler.cc \
 	webrtc/common_audio/resampler/sinc_resampler.cc \
 	webrtc/common_audio/third_party/ooura/fft_size_128/ooura_fft.cc \

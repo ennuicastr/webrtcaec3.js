@@ -20,20 +20,44 @@ var aec3 = {
 
     free: Module.cwrap("WebRtcAec3_free", null, ["number"]),
 
-    renderBufferSize: Module.cwrap(
-        "WebRtcAec3_renderBufferSize", "number", ["number"]
+    renderBuffer: Module.cwrap(
+        "WebRtcAec3_renderBuffer", "number", ["number"]
     ),
 
-    captureBufferSize: Module.cwrap(
-        "WebRtcAec3_captureBufferSize", "number", ["number"]
+    captureBuffer: Module.cwrap(
+        "WebRtcAec3_captureBuffer", "number", ["number"]
     ),
 
-    renderBufferChannels: Module.cwrap(
-        "WebRtcAec3_renderBufferChannels", "number", ["number"]
+    renderInBuffer: Module.cwrap(
+        "WebRtcAec3_renderInBuffer", "number", ["number"]
     ),
 
-    captureBufferChannels: Module.cwrap(
-        "WebRtcAec3_captureBufferChannels", "number", ["number"]
+    captureInBuffer: Module.cwrap(
+        "WebRtcAec3_captureInBuffer", "number", ["number"]
+    ),
+
+    abNumFrames: Module.cwrap(
+        "WebRtcAudioBuffer_num_frames", "number", ["number"]
+    ),
+
+    abChannels: Module.cwrap(
+        "WebRtcAudioBuffer_channels", "number", ["number"]
+    ),
+
+    abCopy: Module.cwrap(
+        "WebRtcAudioBuffer_copy", null, ["number", "number"]
+    ),
+
+    mkRenderBuffer: Module.cwrap(
+        "WebRtcAec3_mkRenderBuffer", "number", [
+            "number", "number", "number", "number", "number"
+        ]
+    ),
+
+    mkCaptureBuffer: Module.cwrap(
+        "WebRtcAec3_mkCaptureBuffer", "number", [
+            "number", "number", "number", "number", "number"
+        ]
     ),
 
     analyzeRender: Module.cwrap("WebRtcAec3_analyzeRender", null, ["number"]),
@@ -47,28 +71,36 @@ var aec3 = {
 
 Module.AEC3 = function(sampleRate, renderNumChannels, captureNumChannels) {
     /**
-     * Pointer to the instance itself.
-     */
-    this._instance = aec3.create(
-        sampleRate, renderNumChannels, captureNumChannels
-    );
-
-    /**
-     * Our current position within the rendering buffer.
-     */
-    this._renderBufPos = 0;
-
-    /**
-     * Our current position within the capture buffer.
-     */
-    this._captureBufPos = 0;
-
-    /**
      * Remember metadata.
      */
     this.sampleRate = sampleRate;
     this.renderNumChannels = renderNumChannels;
     this.captureNumChannels = captureNumChannels;
+
+    // Pointer to the instance itself
+    var ptr = this._instance = aec3.create(
+        sampleRate, renderNumChannels, captureNumChannels
+    );
+
+    // Render buffer
+    this._renderBuf = {
+        sampleRate: 0
+    };
+
+    this._assertBuf(
+        this._renderBuf, sampleRate, renderNumChannels, renderNumChannels,
+        aec3.mkRenderBuffer, aec3.renderBuffer
+    );
+
+    // Capture buffer
+    this._captureBuf = {
+        sampleRate: 0
+    };
+
+    this._assertBuf(
+        this._captureBuf, sampleRate, captureNumChannels, captureNumChannels,
+        aec3.mkCaptureBuffer, aec3.captureBuffer
+    );
 };
 
 Object.assign(Module.AEC3.prototype, {
@@ -76,28 +108,35 @@ Object.assign(Module.AEC3.prototype, {
         aec3.free(this._instance);
     },
 
-    renderBufferSize: function() {
-        return aec3.renderBufferSize(this._instance);
-    },
-
-    captureBufferSize: function() {
-        return aec3.captureBufferSize(this._instance);
+    // Assert that a buffer is as needed
+    _assertBuf: function(
+        buf, sampleRateIn, channelsOut, channelsIn, ctor, getter
+    ) {
+        if (buf.sampleRate !== sampleRateIn || buf.inp.length !== channelsIn) {
+            var ptr = buf.inpPtr = ctor(
+                this._instance,
+                this.sampleRate, channelsOut,
+                sampleRateIn, channelsIn
+            );
+            buf.inp = this._floatPtrPtr(
+                aec3.abChannels(ptr), channelsIn, aec3.abNumFrames(ptr)
+            );
+            ptr = buf.bufPtr = getter(this._instance);
+            buf.buf = this._floatPtrPtr(
+                aec3.abChannels(ptr), channelsOut, aec3.abNumFrames(ptr)
+            );
+            buf.sampleRate = sampleRateIn;
+            buf.pos = 0;
+        }
+        return buf;
     },
 
     renderBuffer: function() {
-        return this._floatPtrPtr(
-            aec3.renderBufferChannels(this._instance),
-            this.renderNumChannels,
-            this.renderBufferSize()
-        );
+        return this._renderBuf.buf;
     },
 
     captureBuffer: function() {
-        return this._floatPtrPtr(
-            aec3.captureBufferChannels(this._instance),
-            this.captureNumChannels,
-            this.captureBufferSize()
-        );
+        return this._captureBuf.buf;
     },
 
     _floatPtrPtr: function(floatPtrPtr, floatPtrArrSz, floatArrSz) {
@@ -122,51 +161,61 @@ Object.assign(Module.AEC3.prototype, {
         aec3.processCapture(this._instance, +levelChange);
     },
 
-    // Copy data into a buffer, running a function when it's full
-    _copyIn: function(buf, bufPos, data, whenFull) {
+    // Perform an action one buffer at a time
+    _bufAtATime: function(buf, data, act) {
+        var bufPos = buf.pos;
         var dataPos = 0;
         while (true) {
-            // Copy in some data
-            var bufRem = buf[0].length - bufPos;
+            var bufRem = buf.inp[0].length - bufPos;
             var dataRem = data[0].length - dataPos;
+
+            // Copy in some data
             if (dataRem >= bufRem) {
-                // Copy in a bit
-                var di = 0;
-                for (var bi = 0; bi < buf.length; bi++) {
-                    buf[bi].set(
-                        data[di].subarray(dataPos, dataPos + bufRem), bufPos
+                // We can fill an entire buffer
+                for (var ch = 0; ch < data.length; ch++) {
+                    buf.inp[ch].set(
+                        data[ch].subarray(dataPos, dataPos + bufRem),
+                        bufPos
                     );
-                    di = (di + 1) % data.length;
                 }
 
-                // Buffer full
-                whenFull();
+                // And act
+                aec3.abCopy(buf.bufPtr, buf.inpPtr);
+                act();
 
-                dataPos += bufRem;
                 bufPos = 0;
-                bufRem = buf[0].length;
+                dataPos += bufRem;
+
             } else if (dataRem) {
-                // Copy in what remains
-                var di = 0;
-                for (var bi = 0; bi < buf.length; bi++) {
-                    buf[bi].set(data[di].subarray(dataPos), bufPos);
-                    di = (di + 1) % data.length;
+                // Leave some overflow
+                for (var ch = 0; ch < data.length; ch++) {
+                    buf.inp[ch].set(
+                        data[ch].subarray(dataPos), bufPos
+                    );
                 }
                 bufPos += dataRem;
                 break;
+
             } else break;
         }
-        return bufPos;
+        buf.pos = bufPos;
     },
 
     /**
      * Analyze this render data. Will process as much as can be eagerly.
      * @param data  Data to analyze, as a Float32Array[]
+     * @param opts  Input data options
      */
-    analyze: function(data) {
+    analyze: function(data, opts) {
         var self = this;
-        this._captureBufPos = this._copyIn(
-            this.captureBuffer(), this._captureBufPos, data, function() {
+        opts = opts || {};
+        this._assertBuf(
+            this._renderBuf, opts.sampleRate || this.sampleRate,
+            this.renderNumChannels, data.length,
+            aec3.mkRenderBuffer, aec3.renderBuffer
+        );
+        this._bufAtATime(
+            this._renderBuf, data, function() {
                 self.analyzeCapture();
             }
         );
@@ -178,13 +227,21 @@ Object.assign(Module.AEC3.prototype, {
      * Float32Array[][], which is a sequence of frames, each of which is an
      * array of channels, each of which is an array of samples.
      * @param data  Data to process, as a Float32Array[]
+     * @param opts  Processing options
      */
-    process: function(data) {
+    process: function(data, opts) {
         var self = this;
-        var buf = this.renderBuffer();
+        opts = opts || {};
+        this._assertBuf(
+            this._captureBuf, opts.sampleRate || this.sampleRate,
+            this.captureNumChannels, data.length,
+            aec3.mkCaptureBuffer, aec3.captureBuffer
+        );
+        var buf = this._captureBuf.buf;
         var ret = [];
-        this._renderBufPos = this._copyIn(
-            buf, this._renderBufPos, data, function() {
+        this._bufAtATime(
+            this._captureBuf, data, function() {
+                self.processCapture(false);
                 ret.push(buf.map(function(x) { return x.slice(0); }));
             }
         );

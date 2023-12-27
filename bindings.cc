@@ -31,20 +31,11 @@ namespace js {
             echoControl = ecfup->Create(
                 sample_rate_hz, num_render_channels, num_capture_channels
             );
-            renderBuffer = std::make_unique<webrtc::AudioBuffer>(
-                sample_rate_hz, num_render_channels,
-                sample_rate_hz, num_render_channels,
-                sample_rate_hz, num_render_channels
-            );
-            captureBuffer = std::make_unique<webrtc::AudioBuffer>(
-                sample_rate_hz, num_capture_channels,
-                sample_rate_hz, num_capture_channels,
-                sample_rate_hz, num_capture_channels
-            );
         }
 
         std::unique_ptr<webrtc::EchoControl> echoControl;
         std::unique_ptr<webrtc::AudioBuffer> renderBuffer, captureBuffer;
+        std::unique_ptr<webrtc::AudioBuffer> renderInBuffer, captureInBuffer;
     };
 }
 
@@ -61,28 +52,82 @@ extern "C" {
         delete ec3;
     }
 
-    unsigned int WebRtcAec3_renderBufferSize(
+    webrtc::AudioBuffer *WebRtcAec3_renderBuffer(
         js::EchoCanceller3WithBuffer *ec3
     ) {
-        return ec3->renderBuffer->num_frames();
+        return ec3->renderBuffer.get();
     }
 
-    unsigned int WebRtcAec3_captureBufferSize(
+    webrtc::AudioBuffer *WebRtcAec3_captureBuffer(
         js::EchoCanceller3WithBuffer *ec3
     ) {
-        return ec3->captureBuffer->num_frames();
+        return ec3->captureBuffer.get();
     }
 
-    float *const *WebRtcAec3_renderBufferChannels(
+    webrtc::AudioBuffer *WebRtcAec3_renderInBuffer(
         js::EchoCanceller3WithBuffer *ec3
     ) {
-        return ec3->renderBuffer->channels();
+        return ec3->renderInBuffer.get();
     }
 
-    float *const *WebRtcAec3_captureBufferChannels(
+    webrtc::AudioBuffer *WebRtcAec3_captureInBuffer(
         js::EchoCanceller3WithBuffer *ec3
     ) {
-        return ec3->captureBuffer->channels();
+        return ec3->captureInBuffer.get();
+    }
+
+    unsigned int WebRtcAudioBuffer_num_frames(
+        webrtc::AudioBuffer *ab
+    ) {
+        return ab->num_frames();
+    }
+
+    float *const *WebRtcAudioBuffer_channels(
+        webrtc::AudioBuffer *ab
+    ) {
+        return ab->channels();
+    }
+
+    void WebRtcAudioBuffer_copy(
+        webrtc::AudioBuffer *to, webrtc::AudioBuffer *from
+    ) {
+        from->CopyTo(to);
+    }
+
+    webrtc::AudioBuffer *WebRtcAec3_mkRenderBuffer(
+        js::EchoCanceller3WithBuffer *ec3,
+        int outSampleRate, size_t outNumChannels,
+        int inSampleRate, size_t inNumChannels
+    ) {
+        ec3->renderBuffer = std::make_unique<webrtc::AudioBuffer>(
+            outSampleRate, outNumChannels,
+            outSampleRate, outNumChannels,
+            outSampleRate, outNumChannels
+        );
+        ec3->renderInBuffer = std::make_unique<webrtc::AudioBuffer>(
+            inSampleRate, inNumChannels,
+            inSampleRate, inNumChannels,
+            outSampleRate, outNumChannels
+        );
+        return ec3->renderInBuffer.get();
+    }
+
+    webrtc::AudioBuffer *WebRtcAec3_mkCaptureBuffer(
+        js::EchoCanceller3WithBuffer *ec3,
+        int outSampleRate, size_t outNumChannels,
+        int inSampleRate, size_t inNumChannels
+    ) {
+        ec3->captureBuffer = std::make_unique<webrtc::AudioBuffer>(
+            outSampleRate, outNumChannels,
+            outSampleRate, outNumChannels,
+            outSampleRate, outNumChannels
+        );
+        ec3->captureInBuffer = std::make_unique<webrtc::AudioBuffer>(
+            inSampleRate, inNumChannels,
+            inSampleRate, inNumChannels,
+            outSampleRate, outNumChannels
+        );
+        return ec3->captureInBuffer.get();
     }
 
     void WebRtcAec3_analyzeRender(
