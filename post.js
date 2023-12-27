@@ -20,20 +20,8 @@ var aec3 = {
 
     free: Module.cwrap("WebRtcAec3_free", null, ["number"]),
 
-    renderBuffer: Module.cwrap(
-        "WebRtcAec3_renderBuffer", "number", ["number"]
-    ),
-
-    captureBuffer: Module.cwrap(
-        "WebRtcAec3_captureBuffer", "number", ["number"]
-    ),
-
-    renderInBuffer: Module.cwrap(
-        "WebRtcAec3_renderInBuffer", "number", ["number"]
-    ),
-
-    captureInBuffer: Module.cwrap(
-        "WebRtcAec3_captureInBuffer", "number", ["number"]
+    setAudioBufferDelay: Module.cwrap(
+        "WebRtcAec3_setAudioBufferDelay", null, ["number", "number"]
     ),
 
     abNumFrames: Module.cwrap(
@@ -44,18 +32,26 @@ var aec3 = {
         "WebRtcAudioBuffer_channels", "number", ["number"]
     ),
 
-    abCopy: Module.cwrap(
-        "WebRtcAudioBuffer_copy", null, ["number", "number"]
+    abCopyIn: Module.cwrap(
+        "WebRtcAudioBuffer_copyIn", null, [
+            "number", "number", "number", "number"
+        ]
     ),
 
-    mkRenderBuffer: Module.cwrap(
-        "WebRtcAec3_mkRenderBuffer", "number", [
+    abCopyOut: Module.cwrap(
+        "WebRtcAudioBuffer_copyOut", null, [
+            "number", "number", "number", "number"
+        ]
+    ),
+
+    mkRenderInBuffer: Module.cwrap(
+        "WebRtcAec3_mkRenderInBuffer", "number", [
             "number", "number", "number", "number", "number"
         ]
     ),
 
-    mkCaptureBuffer: Module.cwrap(
-        "WebRtcAec3_mkCaptureBuffer", "number", [
+    mkCaptureInBuffer: Module.cwrap(
+        "WebRtcAec3_mkCaptureInBuffer", "number", [
             "number", "number", "number", "number", "number"
         ]
     ),
@@ -69,6 +65,18 @@ var aec3 = {
     ),
 };
 
+(function() {
+    var buffers = [
+        "renderIn", "captureIn",
+        "render", "capture",
+        "renderOut", "captureOut"
+    ];
+    for (var bi = 0; bi < buffers.length; bi++) {
+        var bn = buffers[bi] + "Buffer";
+        aec3[bn] = Module.cwrap("WebRtcAec3_" + bn, "number", ["number"]);
+    }
+})();
+
 Module.AEC3 = function(sampleRate, renderNumChannels, captureNumChannels) {
     /**
      * Remember metadata.
@@ -81,6 +89,7 @@ Module.AEC3 = function(sampleRate, renderNumChannels, captureNumChannels) {
     var ptr = this._instance = aec3.create(
         sampleRate, renderNumChannels, captureNumChannels
     );
+    aec3.setAudioBufferDelay(ptr, 0);
 
     // Render buffer
     this._renderBuf = {
@@ -89,7 +98,7 @@ Module.AEC3 = function(sampleRate, renderNumChannels, captureNumChannels) {
 
     this._assertBuf(
         this._renderBuf, sampleRate, renderNumChannels, renderNumChannels,
-        aec3.mkRenderBuffer, aec3.renderBuffer
+        aec3.mkRenderInBuffer, aec3.renderBuffer, aec3.renderOutBuffer
     );
 
     // Capture buffer
@@ -99,7 +108,7 @@ Module.AEC3 = function(sampleRate, renderNumChannels, captureNumChannels) {
 
     this._assertBuf(
         this._captureBuf, sampleRate, captureNumChannels, captureNumChannels,
-        aec3.mkCaptureBuffer, aec3.captureBuffer
+        aec3.mkCaptureInBuffer, aec3.captureBuffer, aec3.captureOutBuffer
     );
 };
 
@@ -108,12 +117,17 @@ Object.assign(Module.AEC3.prototype, {
         aec3.free(this._instance);
     },
 
+    setAudioBufferDelay: function(to) {
+        aec3.setAudioBufferDelay(this._instance, to);
+    },
+
     // Assert that a buffer is as needed
     _assertBuf: function(
-        buf, sampleRateIn, channelsOut, channelsIn, ctor, getter
+        buf, sampleRateIn, channelsOut, channelsIn,
+        inCtor, bufGetter, outGetter
     ) {
         if (buf.sampleRate !== sampleRateIn || buf.inp.length !== channelsIn) {
-            var ptr = buf.inpPtr = ctor(
+            var ptr = buf.inpPtr = inCtor(
                 this._instance,
                 this.sampleRate, channelsOut,
                 sampleRateIn, channelsIn
@@ -121,22 +135,18 @@ Object.assign(Module.AEC3.prototype, {
             buf.inp = this._floatPtrPtr(
                 aec3.abChannels(ptr), channelsIn, aec3.abNumFrames(ptr)
             );
-            ptr = buf.bufPtr = getter(this._instance);
+            ptr = buf.bufPtr = bufGetter(this._instance);
             buf.buf = this._floatPtrPtr(
+                aec3.abChannels(ptr), channelsOut, aec3.abNumFrames(ptr)
+            );
+            ptr = buf.outPtr = outGetter(this._instance);
+            buf.out = this._floatPtrPtr(
                 aec3.abChannels(ptr), channelsOut, aec3.abNumFrames(ptr)
             );
             buf.sampleRate = sampleRateIn;
             buf.pos = 0;
         }
         return buf;
-    },
-
-    renderBuffer: function() {
-        return this._renderBuf.buf;
-    },
-
-    captureBuffer: function() {
-        return this._captureBuf.buf;
     },
 
     _floatPtrPtr: function(floatPtrPtr, floatPtrArrSz, floatArrSz) {
@@ -180,7 +190,9 @@ Object.assign(Module.AEC3.prototype, {
                 }
 
                 // And act
-                aec3.abCopy(buf.bufPtr, buf.inpPtr);
+                aec3.abCopyIn(
+                    buf.bufPtr, buf.inpPtr, buf.sampleRate, buf.inp.length
+                );
                 act();
 
                 bufPos = 0;
@@ -212,7 +224,7 @@ Object.assign(Module.AEC3.prototype, {
         this._assertBuf(
             this._renderBuf, opts.sampleRate || this.sampleRate,
             this.renderNumChannels, data.length,
-            aec3.mkRenderBuffer, aec3.renderBuffer
+            aec3.mkRenderInBuffer, aec3.renderBuffer, aec3.renderOutBuffer
         );
         this._bufAtATime(
             this._renderBuf, data, function() {
@@ -235,14 +247,18 @@ Object.assign(Module.AEC3.prototype, {
         this._assertBuf(
             this._captureBuf, opts.sampleRate || this.sampleRate,
             this.captureNumChannels, data.length,
-            aec3.mkCaptureBuffer, aec3.captureBuffer
+            aec3.mkCaptureInBuffer, aec3.captureBuffer, aec3.captureOutBuffer
         );
-        var buf = this._captureBuf.buf;
+        var buf = this._captureBuf;
         var ret = [];
         this._bufAtATime(
             this._captureBuf, data, function() {
-                self.processCapture(false);
-                ret.push(buf.map(function(x) { return x.slice(0); }));
+                self.analyzeCapture();
+                self.processCapture(true);
+                aec3.abCopyOut(
+                    buf.outPtr, buf.bufPtr, self.sampleRate, buf.out.length
+                );
+                ret.push(buf.out.map(function(x) { return x.slice(0); }));
             }
         );
         return ret;
