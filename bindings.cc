@@ -15,8 +15,8 @@
 
 #include <cstdlib>
 
-#include "webrtc/api/audio/echo_canceller3_factory.h"
-#include "webrtc/api/audio/echo_control.h"
+#include "webrtc/api/audio/echo_canceller3_config.h"
+#include "webrtc/modules/audio_processing/aec3/echo_canceller3.h"
 #include "webrtc/modules/audio_processing/audio_buffer.h"
 
 namespace js {
@@ -27,11 +27,17 @@ namespace js {
             int sample_rate_hz, int num_render_channels, int num_capture_channels
         )
         {
-            auto ecfup = std::make_unique<webrtc::EchoCanceller3Factory>();
-            echoControl = ecfup->Create(
-                sample_rate_hz, num_render_channels, num_capture_channels
-            );
+            // Initialize the AEC
+            {
+                webrtc::EchoCanceller3Config config;
+                ec3 = std::make_unique<webrtc::EchoCanceller3>(
+                    config, absl::nullopt, sample_rate_hz,
+                    num_render_channels, num_capture_channels
+                );
+                ec3->SetCaptureOutputUsage(true);
+            }
 
+            // And the buffers
             renderOutBuffer = std::make_unique<webrtc::AudioBuffer>(
                 sample_rate_hz, num_render_channels,
                 sample_rate_hz, num_render_channels,
@@ -45,7 +51,7 @@ namespace js {
             );
         }
 
-        std::unique_ptr<webrtc::EchoControl> echoControl;
+        std::unique_ptr<webrtc::EchoCanceller3> ec3;
         std::unique_ptr<webrtc::AudioBuffer> renderInBuffer, captureInBuffer;
         std::unique_ptr<webrtc::AudioBuffer> renderBuffer, captureBuffer;
         std::unique_ptr<webrtc::AudioBuffer> renderOutBuffer, captureOutBuffer;
@@ -68,7 +74,7 @@ extern "C" {
     void WebRtcAec3_setAudioBufferDelay(
         js::EchoCanceller3WithBuffer *ec3, int delay_ms
     ) {
-        ec3->echoControl->SetAudioBufferDelay(delay_ms);
+        ec3->ec3->SetAudioBufferDelay(delay_ms);
     }
 
 #define GET_BUFFER(nm) \
@@ -97,6 +103,18 @@ extern "C" {
         webrtc::AudioBuffer *ab
     ) {
         return ab->channels();
+    }
+
+    void WebRtcAudioBuffer_splitIntoFrequencyBands(
+        webrtc::AudioBuffer *ab
+    ) {
+        ab->SplitIntoFrequencyBands();
+    }
+
+    void WebRtcAudioBuffer_mergeFrequencyBands(
+        webrtc::AudioBuffer *ab
+    ) {
+        ab->MergeFrequencyBands();
     }
 
     void WebRtcAudioBuffer_copyIn(
@@ -144,19 +162,19 @@ extern "C" {
     void WebRtcAec3_analyzeRender(
         js::EchoCanceller3WithBuffer *ec3
     ) {
-        ec3->echoControl->AnalyzeRender(ec3->renderBuffer.get());
+        ec3->ec3->AnalyzeRender(ec3->renderBuffer.get());
     }
 
     void WebRtcAec3_analyzeCapture(
         js::EchoCanceller3WithBuffer *ec3
     ) {
-        ec3->echoControl->AnalyzeCapture(ec3->captureBuffer.get());
+        ec3->ec3->AnalyzeCapture(ec3->captureBuffer.get());
     }
 
     void WebRtcAec3_processCapture(
         js::EchoCanceller3WithBuffer *ec3, int level_change
     ) {
-        ec3->echoControl->ProcessCapture(
+        ec3->ec3->ProcessCapture(
             ec3->captureBuffer.get(), level_change
         );
     }

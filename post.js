@@ -32,6 +32,14 @@ var aec3 = {
         "WebRtcAudioBuffer_channels", "number", ["number"]
     ),
 
+    abSplitIntoFrequencyBands: Module.cwrap(
+        "WebRtcAudioBuffer_splitIntoFrequencyBands", null, ["number"]
+    ),
+
+    abMergeFrequencyBands: Module.cwrap(
+        "WebRtcAudioBuffer_mergeFrequencyBands", null, ["number"]
+    ),
+
     abCopyIn: Module.cwrap(
         "WebRtcAudioBuffer_copyIn", null, [
             "number", "number", "number", "number"
@@ -158,19 +166,6 @@ Object.assign(Module.AEC3.prototype, {
         });
     },
 
-    analyzeRender: function() {
-        aec3.analyzeRender(this._instance);
-    },
-
-    analyzeCapture: function() {
-        aec3.analyzeCapture(this._instance);
-    },
-
-    processCapture: function(levelChange) {
-        levelChange = !!levelChange;
-        aec3.processCapture(this._instance, +levelChange);
-    },
-
     // Perform an action one buffer at a time
     _bufAtATime: function(buf, data, act) {
         var bufPos = buf.pos;
@@ -221,16 +216,38 @@ Object.assign(Module.AEC3.prototype, {
     analyze: function(data, opts) {
         var self = this;
         opts = opts || {};
+        var buf = this._renderBuf;
         this._assertBuf(
-            this._renderBuf, opts.sampleRate || this.sampleRate,
+            buf, opts.sampleRate || this.sampleRate,
             this.renderNumChannels, data.length,
             aec3.mkRenderInBuffer, aec3.renderBuffer, aec3.renderOutBuffer
         );
         this._bufAtATime(
             this._renderBuf, data, function() {
-                self.analyzeCapture();
+                aec3.abSplitIntoFrequencyBands(buf.bufPtr);
+                aec3.analyzeRender(self._instance);
             }
         );
+    },
+
+    /**
+     * Get the length of the output data given this input data. That is, if you
+     * process this data now, how many samples will the output have?
+     */
+    processSize: function(data, opts) {
+        opts = opts || {};
+        var inSampleRate = opts.sampleRate || this.sampleRate;
+        var inFrameSize = ~~(inSampleRate / 100);
+        var samples = data[0].length;
+        var buf = this._captureBuf;
+        if (buf.sampleRate === inSampleRate &&
+            buf.inp.length === data.length) {
+            // Any overflowed data will be included
+            samples += buf.pos;
+        }
+        var frames = ~~(samples / inFrameSize);
+        var outFrameSize = ~~(this.sampleRate / 100);
+        return frames * outFrameSize;
     },
 
     /**
@@ -238,10 +255,13 @@ Object.assign(Module.AEC3.prototype, {
      * may be as little as nothing, or more data than the input. Returns a
      * Float32Array[][], which is a sequence of frames, each of which is an
      * array of channels, each of which is an array of samples.
+     * @param out  Where to put output data. Must be a Float32Array[] of the
+     *             correct number of channels (captureNumChannels), and each
+     *             channel must be of processSize() length.
      * @param data  Data to process, as a Float32Array[]
      * @param opts  Processing options
      */
-    process: function(data, opts) {
+    process: function(out, data, opts) {
         var self = this;
         opts = opts || {};
         this._assertBuf(
@@ -251,16 +271,32 @@ Object.assign(Module.AEC3.prototype, {
         );
         var buf = this._captureBuf;
         var ret = [];
+        var outIdx = 0;
         this._bufAtATime(
-            this._captureBuf, data, function() {
-                self.analyzeCapture();
-                self.processCapture(true);
+            buf, data, function() {
+                if (opts.pre) {
+                    // Get the separated data before processing
+                    aec3.abCopyOut(
+                        buf.outPtr, buf.bufPtr, self.sampleRate, buf.out.length
+                    );
+                    for (var c = 0; c < buf.out.length; c++)
+                        opts.pre[c].set(buf.out[c], outIdx);
+                }
+
+                // Process with AEC3, then suppress
+                aec3.abSplitIntoFrequencyBands(buf.bufPtr);
+                aec3.analyzeCapture(self._instance);
+                aec3.processCapture(self._instance, 0);
+                aec3.abMergeFrequencyBands(buf.bufPtr);
+
+                // And copy out
                 aec3.abCopyOut(
                     buf.outPtr, buf.bufPtr, self.sampleRate, buf.out.length
                 );
-                ret.push(buf.out.map(function(x) { return x.slice(0); }));
+                for (var c = 0; c < buf.out.length; c++)
+                    out[c].set(buf.out[c], outIdx);
+                outIdx += buf.out[0].length;
             }
         );
-        return ret;
     }
 });

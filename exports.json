@@ -10,6 +10,8 @@
     "_WebRtcAec3_captureOutBuffer",
     "_WebRtcAudioBuffer_num_frames",
     "_WebRtcAudioBuffer_channels",
+    "_WebRtcAudioBuffer_splitIntoFrequencyBands",
+    "_WebRtcAudioBuffer_mergeFrequencyBands",
     "_WebRtcAudioBuffer_copyIn",
     "_WebRtcAudioBuffer_copyOut",
     "_WebRtcAec3_mkRenderInBuffer",

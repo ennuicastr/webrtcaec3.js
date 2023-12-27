@@ -21,7 +21,9 @@ SRC=\
 	webrtc/common_audio/audio_util.cc \
 	webrtc/common_audio/resampler/push_sinc_resampler.cc \
 	webrtc/common_audio/resampler/sinc_resampler.cc \
+	webrtc/common_audio/signal_processing/splitting_filter.c \
 	webrtc/common_audio/third_party/ooura/fft_size_128/ooura_fft.cc \
+	webrtc/common_audio/third_party/ooura/fft_size_256/fft4g.cc \
 	webrtc/modules/audio_processing/aec3/adaptive_fir_filter.cc \
 	webrtc/modules/audio_processing/aec3/adaptive_fir_filter_erl.cc \
 	webrtc/modules/audio_processing/aec3/aec3_common.cc \
@@ -99,7 +101,8 @@ SRC=\
 	webrtc/system_wrappers/source/field_trial.cc \
 	webrtc/system_wrappers/source/metrics.cc
 
-OBJS=$(addprefix build/build-wasm/,$(SRC:.cc=.o))
+SRCCCO=$(SRC:.cc=.o)
+OBJS=$(addprefix build/build-wasm/,$(SRCCCO:.c=.o))
 
 all: dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).js \
 	dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).asm.js \
@@ -115,14 +118,16 @@ dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).js: webrtcaec3.in.js \
 dist/webrtcaec3.types.d.ts: webrtcaec3.types.in.d.ts
 	cp $< $@
 
-dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).asm.js: $(OBJS) post.js
+dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).asm.js: $(OBJS) exports.json pre.js \
+		post.js
 	mkdir -p dist
 	$(CC) $(IFLAGS) $(CFLAGS) $(EFLAGS) -s WASM=0 \
 		$(OBJS) -o $@
 	cat license.js $@ > $@.tmp
 	mv $@.tmp $@
 
-dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm.js: $(OBJS) post.js
+dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm.js: $(OBJS) exports.json pre.js \
+		post.js
 	mkdir -p dist
 	$(CC) $(IFLAGS) $(CFLAGS) $(EFLAGS) \
 		$(OBJS) -o $@
@@ -134,6 +139,10 @@ dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm.js: $(OBJS) post.js
 	) > $@.tmp
 	mv $@.tmp $@
 	chmod a-x dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm.wasm
+
+build/build-wasm/%.o: %.c
+	mkdir -p $(dir $@)
+	$(CC) $(IFLAGS) $(CFLAGS) -c $< -o $@
 
 build/build-wasm/%.o: %.cc
 	mkdir -p $(dir $@)
