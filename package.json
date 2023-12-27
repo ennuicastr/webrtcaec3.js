@@ -2,7 +2,8 @@
   "name": "@ennuicastr/webrtcaec3.js",
   "version": "0.1.0",
   "description": "Port of WebRTC's AEC3 (acoustic echo canceller, version 3) library to WebAssembly/JavaScript",
-  "main": "dist/webrtcaec3.js",
+  "main": "dist/webrtcaec3-0.1.0.js",
+  "types": "dist/webrtcaec3.types.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
