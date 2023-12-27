@@ -22,7 +22,7 @@
     "webrtc"
   ],
   "author": "Yahweasel",
-  "license": "Apache-2.0",
+  "license": "BSD-3-Clause",
   "bugs": {
     "url": "https://github.com/ennuicastr/webrtcaec3.js/issues"
   },
