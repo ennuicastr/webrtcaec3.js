@@ -46,6 +46,35 @@ export interface WebRtcAec3 {
 }
 
 /**
+ * Options for the analyze phase.
+ */
+export interface AEC3AnalyzeOpts {
+    /**
+     * Sample rate of the render data. Will assume the same as the AEC3 instance
+     * if unspecified.
+     */
+    sampleRate?: number;
+}
+
+/**
+ * Options for the process phase.
+ */
+export interface AEC3ProcessOpts {
+    /**
+     * Sample rate of the capture data. Will assume the same as the AEC3
+     * instance if unspecified.
+     */
+    sampleRate?: number;
+
+    /**
+     * A secondary output for the data *after* it's been resampled (so that it
+     * aligns with the capture output), but *before* the echo has been
+     * cancelled. Must have the same dimensions as the output buffer.
+     */
+    pre?: Float32Array[];
+}
+
+/**
  * An AEC3 echo canceller instance.
  */
 export interface AEC3 {
@@ -59,61 +88,30 @@ export interface AEC3 {
 
     /**
      * Analyze this render data. Will process as much as can be eagerly.
-     * @param data  Data to analyze, as a Float32Array[]
+     * @param data  Data to analyze.
+     * @param opts  Options.
      */
-    analyze: (data: Float32Array[]) => void;
+    analyze: (data: Float32Array[], opts?: AEC3AnalyzeOpts) => void;
 
     /**
-     * Process this data. Will return as much as can be processed eagerly, which
-     * may be as little as nothing, or more data than the input. Returns a
-     * Float32Array[][], which is a sequence of frames, each of which is an
-     * array of channels, each of which is an array of samples.
-     * @param data  Data to process, as a Float32Array[]
+     * Get the length of the output data given this input data. That is, if you
+     * process this data now, how many samples will the output have?
+     * @param data  Data that will be processed.
+     * @param opts  Options. Must be the same as will be used by `process`.
      */
-    process: (data: Float32Array[]) => Float32Array[][];
+    processSize: (data: Float32Array[], opts?: AEC3ProcessOpts) => number;
 
     /**
-     * Get the size of a render buffer frame. You do not need to operate in
-     * frames, but analyze will be have predictably if you do.
+     * Process this data, i.e., remove echo. The processed data is deposited
+     * into a buffer that the user must provide (as `out`). The output must be
+     * an array of Float32Arrays: the outer array (array of channels) must be
+     * `captureNumChannels` in length, and each Float32Array must have the
+     * length given by `processSize` or more.
+     * @param out  Output for processed data.
+     * @param data  Data to process.
+     * @param opts  Opts.
      */
-    renderBufferSize: () => number;
-
-    /**
-     * Get the size of a render buffer frame. You do not need to operate in
-     * frames, but process will be have predictably if you do.
-     */
-    captureBufferSize: () => number;
-
-    /**
-     * Get a reference to the render buffer channels. Returns a Float32Array[]
-     * of which each Float32Array is a view into the module's memory for the
-     * appropriate channel. Low-level interface.
-     */
-    renderBuffer: () => Float32Array[];
-
-    /**
-     * Get a reference to the capture buffer channels. Returns a Float32Array[]
-     * of which each Float32Array is a view into the module's memory for the
-     * appropriate channel. Low-level interface.
-     */
-    captureBuffer: () => Float32Array[];
-
-    /**
-     * Analyze the internal render buffer. Low-level interface; most of the
-     * time, you should use `analyze`.
-     */
-    analyzeRender: () => void;
-
-    /**
-     * Analyze the internal capture buffer. Low-level interface; most of the
-     * time, you should use `process`.
-     */
-    analyzeCapture: () => void;
-
-    /**
-     * Process the internal capture buffer. Low-level interface; most of the
-     * time, you should use `process`.
-     * @param levelChange  Set to true to allow the input level to change
-     */
-    processCapture: (levelChange: boolean) => void;
+    process: (
+        out: Float32Array[], data: Float32Array[], opts?: AEC3ProcessOpts
+    ) => void;
 }

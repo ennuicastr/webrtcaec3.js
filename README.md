@@ -38,24 +38,30 @@ const AEC3 = await WebRtcAec3.WebRtcAec3();
 const aec = new AEC3(sampleRate, outputChannels, inputChannels);
 ```
 
-The AEC3 instances expose two particularly useful functions: `analyze` and
+Note that not all sample rates will work. In fact, most won't. Basically, use
+`48000`.
+
+The AEC3 instances expose three methods: `analyze`, `processSize`, and
 `process`. Use `analyze` to analyze render (output) data:
 
 ```js
 aec.analyze(outputData /* Float32Array[] */);
 ```
 
-Use `process` to process capture (input) data, cancelling echo. `process`
-returns a `Float32Array[][]`, which is an array of *frames*, each of which is a
-10ms chunk of audio. Each frame is an array of channels, and each channel is a
-Float32Array of samples.
+Use `process` to process capture (input) data, cancelling echo. It deposits the
+processed data into an output buffer which you must provide. You can use
+`processSize` to get the necessary size of each channel of the output buffer.
 
 ```js
-const cancelled = aec.process(inputData /* Float32Array[] */);
-for (const frame of cancelled) {
-    ... do something with this frame of data ...
-}
+const bufSz = aec.processSize(inputData);
+const outBuf = [new Float32Array(bufSz)]; // one per channel
+const cancelled = aec.process(outBuf, inputData /* Float32Array[] */);
+... do something with outBuf ...
 ```
 
-Other functions are exposed by AEC3, and you can find their descriptions in the
-types file.
+`analyze`, `processSize`, and `process` each take an optional “options”
+argument, which in particular can take a sample rate for the input data. If the
+sample rate for the input data does not match the sample rate with which the
+AEC3 instance was created, it will be resampled.
+
+For further documentation on each method, see the types file.

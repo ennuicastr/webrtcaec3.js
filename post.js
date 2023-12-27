@@ -210,8 +210,8 @@ Object.assign(Module.AEC3.prototype, {
 
     /**
      * Analyze this render data. Will process as much as can be eagerly.
-     * @param data  Data to analyze, as a Float32Array[]
-     * @param opts  Input data options
+     * @param data  Data to analyze.
+     * @param opts  Options.
      */
     analyze: function(data, opts) {
         var self = this;
@@ -233,6 +233,8 @@ Object.assign(Module.AEC3.prototype, {
     /**
      * Get the length of the output data given this input data. That is, if you
      * process this data now, how many samples will the output have?
+     * @param data  Data that will be processed.
+     * @param opts  Options. Must be the same as will be used by `process`.
      */
     processSize: function(data, opts) {
         opts = opts || {};
@@ -251,15 +253,14 @@ Object.assign(Module.AEC3.prototype, {
     },
 
     /**
-     * Process this data. Will return as much as can be processed eagerly, which
-     * may be as little as nothing, or more data than the input. Returns a
-     * Float32Array[][], which is a sequence of frames, each of which is an
-     * array of channels, each of which is an array of samples.
-     * @param out  Where to put output data. Must be a Float32Array[] of the
-     *             correct number of channels (captureNumChannels), and each
-     *             channel must be of processSize() length.
-     * @param data  Data to process, as a Float32Array[]
-     * @param opts  Processing options
+     * Process this data, i.e., remove echo. The processed data is deposited
+     * into a buffer that the user must provide (as `out`). The output must be
+     * an array of Float32Arrays: the outer array (array of channels) must be
+     * `captureNumChannels` in length, and each Float32Array must have the
+     * length given by `processSize` or more.
+     * @param out  Output for processed data.
+     * @param data  Data to process.
+     * @param opts  Opts.
      */
     process: function(out, data, opts) {
         var self = this;
