@@ -1,8 +1,11 @@
 CC=emcc
 CXX=em++
 IFLAGS=\
-	-Istubs -Iabseil-cpp -Iwebrtc -Iwebrtc/rtc_base \
-	-DWEBRTC_POSIX -DWEBRTC_APM_DEBUG_DUMP=0 -DLAST_SYSTEM_ERROR=errno
+	-Iabseil-cpp -Iwebrtc -Iwebrtc/rtc_base \
+	-DNDEBUG \
+	-DWEBRTC_POSIX \
+	-DRTC_DISABLE_LOGGING -DWEBRTC_APM_DEBUG_DUMP=0 \
+	-DLAST_SYSTEM_ERROR=errno
 CFLAGS=-Oz
 
 WEBRTCAEC3JS_VERSION=0.1.0
@@ -87,7 +90,6 @@ SRC=\
 	webrtc/modules/audio_processing/utility/cascaded_biquad_filter.cc \
 	webrtc/rtc_base/checks.cc \
 	webrtc/rtc_base/experiments/field_trial_parser.cc \
-	webrtc/rtc_base/logging.cc \
 	webrtc/rtc_base/memory/aligned_malloc.cc \
 	webrtc/rtc_base/platform_thread_types.cc \
 	webrtc/rtc_base/race_checker.cc \
