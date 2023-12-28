@@ -51,6 +51,8 @@
                 var toLoad = base + "/webrtcaec3-@VER." + target + ".js";
                 if (nodejs) {
                     WebRtcAec3Factory = require(toLoad);
+                } else if (typeof importScripts !== "undefined") {
+                    importScripts(toLoad);
                 } else {
                     return new Promise(function(res, rej) {
                         var scr = document.createElement("script");
