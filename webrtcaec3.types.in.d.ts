@@ -79,6 +79,21 @@ export interface AEC3ProcessOpts {
  */
 export interface AEC3 {
     /**
+     * The sample rate used to create this instance.
+     */
+    readonly sampleRate: number;
+
+    /**
+     * The number of render channels for processing.
+     */
+    readonly renderNumChannels: number;
+
+    /**
+     * The number of capture channels for processing.
+     */
+    readonly captureNumChannels: number;
+
+    /**
      * Free this instance. You should call this before you stop using it, and
      * it's crucial to call this if you intend to use the same module for other
      * AEC3 instances. If you use different modules, technically the GC will
