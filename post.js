@@ -52,15 +52,15 @@ var aec3 = {
         ]
     ),
 
-    mkRenderInBuffer: Module.cwrap(
-        "WebRtcAec3_mkRenderInBuffer", "number", [
-            "number", "number", "number", "number", "number"
+    mkRenderBuffer: Module.cwrap(
+        "WebRtcAec3_mkRenderBuffer", "number", [
+            "number", "number", "number", "number", "number", "number", "number"
         ]
     ),
 
-    mkCaptureInBuffer: Module.cwrap(
-        "WebRtcAec3_mkCaptureInBuffer", "number", [
-            "number", "number", "number", "number", "number"
+    mkCaptureBuffer: Module.cwrap(
+        "WebRtcAec3_mkCaptureBuffer", "number", [
+            "number", "number", "number", "number", "number", "number", "number"
         ]
     ),
 
@@ -101,22 +101,28 @@ Module.AEC3 = function(sampleRate, renderNumChannels, captureNumChannels) {
 
     // Render buffer
     this._renderBuf = {
-        sampleRate: 0
+        sampleRateIn: 0,
+        sampleRateOut: 0
     };
 
     this._assertBuf(
-        this._renderBuf, sampleRate, renderNumChannels, renderNumChannels,
-        aec3.mkRenderInBuffer, aec3.renderBuffer, aec3.renderOutBuffer
+        this._renderBuf,
+        sampleRate, renderNumChannels,
+        sampleRate, renderNumChannels,
+        aec3.mkRenderBuffer, aec3.renderBuffer, aec3.renderOutBuffer
     );
 
     // Capture buffer
     this._captureBuf = {
-        sampleRate: 0
+        sampleRateIn: 0,
+        sampleRateOut: 0
     };
 
     this._assertBuf(
-        this._captureBuf, sampleRate, captureNumChannels, captureNumChannels,
-        aec3.mkCaptureInBuffer, aec3.captureBuffer, aec3.captureOutBuffer
+        this._captureBuf,
+        sampleRate, captureNumChannels,
+        sampleRate, captureNumChannels,
+        aec3.mkCaptureBuffer, aec3.captureBuffer, aec3.captureOutBuffer
     );
 };
 
@@ -131,14 +137,20 @@ Object.assign(Module.AEC3.prototype, {
 
     // Assert that a buffer is as needed
     _assertBuf: function(
-        buf, sampleRateIn, channelsOut, channelsIn,
+        buf,
+        sampleRateOut, channelsOut,
+        sampleRateIn, channelsIn,
         inCtor, bufGetter, outGetter
     ) {
-        if (buf.sampleRate !== sampleRateIn || buf.inp.length !== channelsIn) {
+        if (buf.sampleRateOut !== sampleRateOut ||
+            buf.sampleRateIn !== sampleRateIn ||
+            buf.out.length !== channelsOut ||
+            buf.inp.length !== channelsIn) {
             var ptr = buf.inpPtr = inCtor(
                 this._instance,
+                sampleRateIn, channelsIn,
                 this.sampleRate, channelsOut,
-                sampleRateIn, channelsIn
+                sampleRateOut, channelsOut
             );
             buf.inp = this._floatPtrPtr(
                 aec3.abChannels(ptr), channelsIn, aec3.abNumFrames(ptr)
@@ -151,7 +163,8 @@ Object.assign(Module.AEC3.prototype, {
             buf.out = this._floatPtrPtr(
                 aec3.abChannels(ptr), channelsOut, aec3.abNumFrames(ptr)
             );
-            buf.sampleRate = sampleRateIn;
+            buf.sampleRateIn = sampleRateIn;
+            buf.sampleRateOut = sampleRateOut;
             buf.pos = 0;
         }
         return buf;
@@ -186,7 +199,7 @@ Object.assign(Module.AEC3.prototype, {
 
                 // And act
                 aec3.abCopyIn(
-                    buf.bufPtr, buf.inpPtr, buf.sampleRate, buf.inp.length
+                    buf.bufPtr, buf.inpPtr, buf.sampleRateIn, buf.inp.length
                 );
                 act();
 
@@ -218,9 +231,10 @@ Object.assign(Module.AEC3.prototype, {
         opts = opts || {};
         var buf = this._renderBuf;
         this._assertBuf(
-            buf, opts.sampleRate || this.sampleRate,
-            this.renderNumChannels, data.length,
-            aec3.mkRenderInBuffer, aec3.renderBuffer, aec3.renderOutBuffer
+            buf,
+            opts.sampleRateOut || this.sampleRate, this.renderNumChannels,
+            opts.sampleRateIn || this.sampleRate, data.length,
+            aec3.mkRenderBuffer, aec3.renderBuffer, aec3.renderOutBuffer
         );
         this._bufAtATime(
             this._renderBuf, data, function() {
@@ -238,17 +252,19 @@ Object.assign(Module.AEC3.prototype, {
      */
     processSize: function(data, opts) {
         opts = opts || {};
-        var inSampleRate = opts.sampleRate || this.sampleRate;
+        var inSampleRate = opts.sampleRateIn || this.sampleRate;
         var inFrameSize = ~~(inSampleRate / 100);
+        var outSampleRate = opts.sampleRateOut || this.sampleRate;
+        var outFrameSize = ~~(outSampleRate / 100);
         var samples = data[0].length;
         var buf = this._captureBuf;
-        if (buf.sampleRate === inSampleRate &&
+        if (buf.sampleRateIn === inSampleRate &&
+            buf.sampleRateOut === outSampleRate &&
             buf.inp.length === data.length) {
             // Any overflowed data will be included
             samples += buf.pos;
         }
         var frames = ~~(samples / inFrameSize);
-        var outFrameSize = ~~(this.sampleRate / 100);
         return frames * outFrameSize;
     },
 
@@ -266,9 +282,10 @@ Object.assign(Module.AEC3.prototype, {
         var self = this;
         opts = opts || {};
         this._assertBuf(
-            this._captureBuf, opts.sampleRate || this.sampleRate,
-            this.captureNumChannels, data.length,
-            aec3.mkCaptureInBuffer, aec3.captureBuffer, aec3.captureOutBuffer
+            this._captureBuf,
+            opts.sampleRateOut || this.sampleRate, this.captureNumChannels,
+            opts.sampleRateIn || this.sampleRate, data.length,
+            aec3.mkCaptureBuffer, aec3.captureBuffer, aec3.captureOutBuffer
         );
         var buf = this._captureBuf;
         var ret = [];
@@ -278,7 +295,8 @@ Object.assign(Module.AEC3.prototype, {
                 if (opts.pre) {
                     // Get the separated data before processing
                     aec3.abCopyOut(
-                        buf.outPtr, buf.bufPtr, self.sampleRate, buf.out.length
+                        buf.outPtr, buf.bufPtr, buf.sampleRateOut,
+                        buf.out.length
                     );
                     for (var c = 0; c < buf.out.length; c++)
                         opts.pre[c].set(buf.out[c], outIdx);
@@ -292,7 +310,7 @@ Object.assign(Module.AEC3.prototype, {
 
                 // And copy out
                 aec3.abCopyOut(
-                    buf.outPtr, buf.bufPtr, self.sampleRate, buf.out.length
+                    buf.outPtr, buf.bufPtr, buf.sampleRateOut, buf.out.length
                 );
                 for (var c = 0; c < buf.out.length; c++)
                     out[c].set(buf.out[c], outIdx);

@@ -14,8 +14,8 @@
     "_WebRtcAudioBuffer_mergeFrequencyBands",
     "_WebRtcAudioBuffer_copyIn",
     "_WebRtcAudioBuffer_copyOut",
-    "_WebRtcAec3_mkRenderInBuffer",
-    "_WebRtcAec3_mkCaptureInBuffer",
+    "_WebRtcAec3_mkRenderBuffer",
+    "_WebRtcAec3_mkCaptureBuffer",
     "_WebRtcAec3_analyzeRender",
     "_WebRtcAec3_analyzeCapture",
     "_WebRtcAec3_processCapture"

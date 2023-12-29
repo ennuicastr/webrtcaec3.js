@@ -51,14 +51,16 @@
                 goB.disabled = true;
 
                 // Create all our input and output
-                const ac = new AudioContext({sampleRate: 48000});
-                if (ac.state !== "running")
-                    await ac.resume();
                 const ms = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: false
                     }
                 });
+                const ac = new AudioContext({
+                    sampleRate: ms.getAudioTracks()[0].getSettings().sampleRate
+                });
+                if (ac.state !== "running")
+                    await ac.resume();
                 const cap = await Weasound.createAudioCapture(ac, ms);
                 const capSampleRate = cap.getSampleRate();
                 const play = await Weasound.createAudioPlayback(ac);
@@ -66,8 +68,11 @@
 
                 // And our processing
                 const AEC3 = await WebRtcAec3.WebRtcAec3();
-                const aec3 = new AEC3.AEC3(ac.sampleRate, 1, 1);
-                const opts = {sampleRate: capSampleRate};
+                const aec3 = new AEC3.AEC3(48000, 1, 1);
+                const opts = {
+                    sampleRateIn: capSampleRate,
+                    sampleRateOut: ac.sampleRate
+                };
                 let outBuf = [];
 
                 cap.on("data", chunk => {
@@ -83,7 +88,7 @@
                         outBuf = [new Float32Array(outBufSz)];
                     }
                     aec3.process(outBuf, chunk, opts);
-                    play.play(outBuf);
+                    play.play(outBuf.map(x => x.slice(0)));
                 });
             }
 

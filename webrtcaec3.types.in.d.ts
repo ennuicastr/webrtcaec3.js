@@ -50,10 +50,10 @@ export interface WebRtcAec3 {
  */
 export interface AEC3AnalyzeOpts {
     /**
-     * Sample rate of the render data. Will assume the same as the AEC3 instance
+     * Sample rate of the input data. Will assume the same as the AEC3 instance
      * if unspecified.
      */
-    sampleRate?: number;
+    sampleRateIn?: number;
 }
 
 /**
@@ -61,10 +61,16 @@ export interface AEC3AnalyzeOpts {
  */
 export interface AEC3ProcessOpts {
     /**
-     * Sample rate of the capture data. Will assume the same as the AEC3
+     * Sample rate of the input data. Will assume the same as the AEC3
      * instance if unspecified.
      */
-    sampleRate?: number;
+    sampleRateIn?: number;
+
+    /**
+     * Sample rate of the returned data. Will use the same as the AEC3 instance
+     * if unspecified.
+     */
+    sampleRateOut?: number;
 
     /**
      * A secondary output for the data *after* it's been resampled (so that it

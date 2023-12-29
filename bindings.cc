@@ -27,28 +27,12 @@ namespace js {
             int sample_rate_hz, int num_render_channels, int num_capture_channels
         )
         {
-            // Initialize the AEC
-            {
-                webrtc::EchoCanceller3Config config;
-                ec3 = std::make_unique<webrtc::EchoCanceller3>(
-                    config, absl::nullopt, sample_rate_hz,
-                    num_render_channels, num_capture_channels
-                );
-                ec3->SetCaptureOutputUsage(true);
-            }
-
-            // And the buffers
-            renderOutBuffer = std::make_unique<webrtc::AudioBuffer>(
-                sample_rate_hz, num_render_channels,
-                sample_rate_hz, num_render_channels,
-                sample_rate_hz, num_render_channels
+            webrtc::EchoCanceller3Config config;
+            ec3 = std::make_unique<webrtc::EchoCanceller3>(
+                config, absl::nullopt, sample_rate_hz,
+                num_render_channels, num_capture_channels
             );
-
-            captureOutBuffer = std::make_unique<webrtc::AudioBuffer>(
-                sample_rate_hz, num_capture_channels,
-                sample_rate_hz, num_capture_channels,
-                sample_rate_hz, num_capture_channels
-            );
+            ec3->SetCaptureOutputUsage(true);
         }
 
         std::unique_ptr<webrtc::EchoCanceller3> ec3;
@@ -134,10 +118,11 @@ extern "C" {
     }
 
 #define MK_BUFFER(nm, nmc) \
-    webrtc::AudioBuffer *WebRtcAec3_mk ## nmc ## InBuffer( \
+    webrtc::AudioBuffer *WebRtcAec3_mk ## nmc ## Buffer( \
         js::EchoCanceller3WithBuffer *ec3, \
-        int outSampleRate, size_t outNumChannels, \
-        int inSampleRate, size_t inNumChannels \
+        int inSampleRate, size_t inNumChannels, \
+        int procSampleRate, size_t procNumChannels, \
+        int outSampleRate, size_t outNumChannels \
     ) { \
         ec3->nm ## InBuffer = std::make_unique<webrtc::AudioBuffer>( \
             inSampleRate, inNumChannels, \
@@ -147,6 +132,12 @@ extern "C" {
         \
         ec3->nm ## Buffer = std::make_unique<webrtc::AudioBuffer>( \
             inSampleRate, inNumChannels, \
+            procSampleRate, procNumChannels, \
+            outSampleRate, outNumChannels \
+        ); \
+        \
+        ec3->nm ## OutBuffer = std::make_unique<webrtc::AudioBuffer>( \
+            outSampleRate, outNumChannels, \
             outSampleRate, outNumChannels, \
             outSampleRate, outNumChannels \
         ); \
