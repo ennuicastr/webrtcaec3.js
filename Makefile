@@ -8,7 +8,7 @@ IFLAGS=\
 	-DLAST_SYSTEM_ERROR=errno
 CFLAGS=-Oz
 
-WEBRTCAEC3JS_VERSION=0.1.2
+WEBRTCAEC3JS_VERSION=0.2.0
 
 EFLAGS=\
 	--memory-init-file 0 --pre-js pre.js --post-js post.js \
