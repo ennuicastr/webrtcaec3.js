@@ -108,6 +108,12 @@ export interface AEC3 {
     free: () => void;
 
     /**
+     * Set the delay on the audio buffer (optional).
+     * @param delay  Delay in ms.
+     */
+    setAudioBufferDelay: (delay: ms) => void;
+
+    /**
      * Analyze this render data. Will process as much as can be eagerly.
      * @param data  Data to analyze.
      * @param opts  Options.

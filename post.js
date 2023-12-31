@@ -97,7 +97,6 @@ Module.AEC3 = function(sampleRate, renderNumChannels, captureNumChannels) {
     var ptr = this._instance = aec3.create(
         sampleRate, renderNumChannels, captureNumChannels
     );
-    aec3.setAudioBufferDelay(ptr, 0);
 
     // Render buffer
     this._renderBuf = {
