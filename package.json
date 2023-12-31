@@ -1,9 +1,9 @@
 {
   "name": "@ennuicastr/webrtcaec3.js",
   "//version": "When changing the version, make sure you update it below (version, main), in Makefile, and in the demo.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Port of WebRTC's AEC3 (acoustic echo canceller, version 3) library to WebAssembly/JavaScript",
-  "main": "dist/webrtcaec3-0.2.0.js",
+  "main": "dist/webrtcaec3-0.2.1.js",
   "types": "dist/webrtcaec3.types.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
