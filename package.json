@@ -28,8 +28,5 @@
   "bugs": {
     "url": "https://github.com/ennuicastr/webrtcaec3.js/issues"
   },
-  "homepage": "https://github.com/ennuicastr/webrtcaec3.js#readme",
-  "devDependencies": {
-    "uglify-js": "^3.17.4"
-  }
+  "homepage": "https://github.com/ennuicastr/webrtcaec3.js#readme"
 }

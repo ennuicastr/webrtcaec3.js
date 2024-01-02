@@ -12,29 +12,18 @@ Additionally, library components used by WebRTC are under the Apache 2 license.
 
 # API
 
-Include `webrtcaec3.js`, or import or require this library as a module. This
-library loads other components dynamically, so if you're not loading it from
-".", you first need to inform it of the base from which to load its
-prerequisites by setting a global variable `WebRtcAec3` with a `base` member
-like so:
-
-```js
-WebRtcAec3 = {base: "dist"};
-```
-
-`base` can be a relative path or full URL.
-
-Once the library is loaded, `WebRtcAec3.WebRtcAec3` is a function which returns
-a promise for a `WebRtcAec3` module instance. With a `WebRtcAec3` module
-instance `AEC3`, `AEC3.AEC3` is a constructor for an AEC3 instance, taking three
-parameters: the sample rate, and the number of channels for the render (output)
-and capture (input) streams, respectively. The AEC3 library itself is
-synchronous, so if you need asynchrony, use it in a WebWorker.
+Include `webrtcaec3.js`, or import or require this library as a module. Once the
+library is loaded, `WebRtcAec3` is a function which returns a promise for a
+`WebRtcAec3` module instance. With a `WebRtcAec3` module instance `AEC3`,
+`AEC3.AEC3` is a constructor for an AEC3 instance, taking three parameters: the
+sample rate, and the number of channels for the render (output) and capture
+(input) streams, respectively. The AEC3 library itself is synchronous, so if you
+need asynchrony, use it in a WebWorker.
 
 Putting that together:
 
 ```js
-const AEC3 = await WebRtcAec3.WebRtcAec3();
+const AEC3 = await WebRtcAec3();
 const aec = new AEC3(sampleRate, outputChannels, inputChannels);
 ```
 

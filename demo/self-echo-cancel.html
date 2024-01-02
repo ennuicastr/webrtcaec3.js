@@ -67,7 +67,7 @@
                 (play.unsharedNode() || play.sharedNode()).connect(ac.destination);
 
                 // And our processing
-                const AEC3 = await WebRtcAec3.WebRtcAec3();
+                const AEC3 = await WebRtcAec3();
                 const aec3 = new AEC3.AEC3(48000, 1, 1);
                 const opts = {
                     sampleRateIn: capSampleRate,

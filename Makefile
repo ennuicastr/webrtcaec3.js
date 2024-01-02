@@ -12,7 +12,8 @@ WEBRTCAEC3JS_VERSION=0.2.1
 
 EFLAGS=\
 	--memory-init-file 0 --pre-js pre.js --post-js post.js \
-	-s "EXPORT_NAME='WebRtcAec3Factory'" \
+	-s WASM=2 \
+	-s "EXPORT_NAME='WebRtcAec3'" \
 	-s "EXPORTED_FUNCTIONS=@exports.json" \
 	-s "EXPORTED_RUNTIME_METHODS=['cwrap']" \
 	-s MODULARIZE=1
@@ -105,29 +106,13 @@ SRCCCO=$(SRC:.cc=.o)
 OBJS=$(addprefix build/build-wasm/,$(SRCCCO:.c=.o))
 
 all: dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).js \
-	dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).asm.js \
-	dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm.js \
 	dist/webrtcaec3.types.d.ts
-
-dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).js: webrtcaec3.in.js \
-		node_modules/.bin/uglifyjs
-	mkdir -p dist
-	sed 's/@VER/$(WEBRTCAEC3JS_VERSION)/g' $< | \
-		node_modules/.bin/uglifyjs -m > $@
 
 dist/webrtcaec3.types.d.ts: webrtcaec3.types.in.d.ts
 	mkdir -p dist
 	cp $< $@
 
-dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).asm.js: $(OBJS) exports.json pre.js \
-		post.js
-	mkdir -p dist
-	$(CC) $(IFLAGS) $(CFLAGS) $(EFLAGS) -s WASM=0 \
-		$(OBJS) -o $@
-	cat license.js $@ > $@.tmp
-	mv $@.tmp $@
-
-dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm.js: $(OBJS) exports.json pre.js \
+dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).js: $(OBJS) exports.json pre.js \
 		post.js
 	mkdir -p dist
 	$(CC) $(IFLAGS) $(CFLAGS) $(EFLAGS) \
@@ -135,11 +120,11 @@ dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm.js: $(OBJS) exports.json pre.js \
 	( \
 		cat license.js ; \
 		printf 'WebRtcAec3Wasm="data:application/wasm;base64,' ; \
-		base64 -w0 < dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm.wasm | sed 's/$$/";/'; \
+		base64 -w0 < dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm | sed 's/$$/";/'; \
 		cat $@ \
 	) > $@.tmp
 	mv $@.tmp $@
-	chmod a-x dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm.wasm
+	chmod a-x dist/webrtcaec3-$(WEBRTCAEC3JS_VERSION).wasm
 
 build/build-wasm/%.o: %.c
 	mkdir -p $(dir $@)
@@ -148,9 +133,6 @@ build/build-wasm/%.o: %.c
 build/build-wasm/%.o: %.cc
 	mkdir -p $(dir $@)
 	$(CXX) $(IFLAGS) $(CFLAGS) -c $< -o $@
-
-node_modules/.bin/uglifyjs:
-	npm install
 
 clean:
 	rm -rf dist build
