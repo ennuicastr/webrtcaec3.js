@@ -44,7 +44,7 @@ processed data into an output buffer which you must provide. You can use
 ```js
 const bufSz = aec.processSize(inputData);
 const outBuf = [new Float32Array(bufSz)]; // one per channel
-const cancelled = aec.process(outBuf, inputData /* Float32Array[] */);
+aec.process(outBuf, inputData /* Float32Array[] */);
 ... do something with outBuf ...
 ```
 
